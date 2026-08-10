@@ -1,4 +1,14 @@
 /**
+ * LEGACY — Practical 4 in-memory storage
+ *
+ * This file was the data store for Practical 4.
+ * As of Practical 5, all task data is stored in MongoDB via the Mongoose Task model
+ * (see models/Task.js). This file is no longer imported or used by the application.
+ *
+ * Kept for reference only. Do not delete — it documents the Practical 4 implementation.
+ */
+
+/**
  * In-memory task storage
  * This simulates a database for demonstration purposes
  */

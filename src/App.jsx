@@ -9,6 +9,7 @@ import SkillsPage from "./pages/Skills";
 import Projects from "./pages/Projects";
 import ExperiencePage from "./pages/Experience";
 import Contact from "./pages/Contact";
+import TasksPage from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
         <Route path="/projects" element={<Projects />} />
         <Route path="/experience" element={<ExperiencePage />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/tasks" element={<TasksPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
 

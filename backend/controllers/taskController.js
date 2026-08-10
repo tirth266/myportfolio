@@ -1,83 +1,93 @@
 /**
- * Task Controller
- * Handles all business logic for task operations
- * Includes CRUD operations and bonus features (search, sort, pagination)
+ * Task Controller — Practical 5
+ *
+ * All CRUD operations now use the Mongoose Task model (MongoDB).
+ * Practical 4 bonus features are preserved:
+ *   ✅ Search by title (regex, case-insensitive)
+ *   ✅ Filter by completed status
+ *   ✅ Sort (newest / oldest)
+ *   ✅ Pagination with metadata
+ *
+ * Error handling:
+ *   - All Mongoose errors are forwarded to the global error handler via next(err).
+ *   - The global error handler (errorHandler.js) converts Mongoose ValidationError
+ *     and CastError into clean JSON responses.
+ *   - Controllers never return raw Mongoose objects or stack traces.
  */
 
-const { tasks, getNextId } = require("../data/tasks");
+const Task              = require("../models/Task");
 const { sendSuccess, sendError } = require("../utils/response");
 
+// ── GET /tasks ─────────────────────────────────────────────────────────────────
 /**
- * GET /tasks
- * Retrieves all tasks with optional filtering, sorting, and pagination
- * Query parameters:
- * - completed: boolean (filter by completion status)
- * - title: string (search by title)
- * - sort: 'newest' or 'oldest' (sort by creation date)
- * - page: number (pagination page, default 1)
- * - limit: number (items per page, default 10)
+ * Returns all tasks from MongoDB with optional filtering, sorting, and pagination.
+ *
+ * Query params
+ *   ?title=<string>        case-insensitive search on title
+ *   ?completed=true|false  filter by completion status
+ *   ?sort=newest|oldest    sort by createdAt (default: newest)
+ *   ?page=<n>              pagination page  (default: 1)
+ *   ?limit=<n>             items per page   (default: 10, max: 100)
  */
-const getAllTasks = async (req, res) => {
+const getAllTasks = async (req, res, next) => {
   try {
-    let filteredTasks = [...tasks];
+    const filter = {};
 
     // Filter by completion status
     if (req.query.completed !== undefined) {
-      const completed = req.query.completed === "true";
-      filteredTasks = filteredTasks.filter((task) => task.completed === completed);
+      filter.completed = req.query.completed === "true";
     }
 
-    // Search by title (case-insensitive)
+    // Search by title (MongoDB regex — case-insensitive)
     if (req.query.title) {
-      const searchTerm = req.query.title.toLowerCase();
-      filteredTasks = filteredTasks.filter((task) =>
-        task.title.toLowerCase().includes(searchTerm)
-      );
+      filter.title = { $regex: req.query.title, $options: "i" };
     }
 
-    // Sort by creation date
-    if (req.query.sort) {
-      if (req.query.sort === "newest") {
-        filteredTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      } else if (req.query.sort === "oldest") {
-        filteredTasks.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      }
-    }
+    // Sort by createdAt
+    const sortOption =
+      req.query.sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
 
     // Pagination
-    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 10));
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
+    const skip  = (page - 1) * limit;
 
-    const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
-    const totalCount = filteredTasks.length;
+    // Run query and count in parallel for performance
+    const [tasks, totalCount] = await Promise.all([
+      Task.find(filter).sort(sortOption).skip(skip).limit(limit),
+      Task.countDocuments(filter),
+    ]);
+
     const totalPages = Math.ceil(totalCount / limit);
 
     sendSuccess(res, 200, "Tasks retrieved successfully", {
-      tasks: paginatedTasks,
+      tasks,
       pagination: {
-        currentPage: page,
+        currentPage:     page,
         limit,
         totalCount,
         totalPages,
-        hasNextPage: page < totalPages,
+        hasNextPage:     page < totalPages,
         hasPreviousPage: page > 1,
       },
     });
   } catch (error) {
-    sendError(res, 500, "Error retrieving tasks");
+    next(error);
   }
 };
 
+// ── GET /tasks/:id ─────────────────────────────────────────────────────────────
 /**
- * GET /tasks/:id
- * Retrieves a single task by ID
+ * Returns a single task by its MongoDB ObjectId.
+ *
+ * Responses
+ *   200  task found
+ *   404  valid ObjectId but no document exists
+ *   400  invalid ObjectId format (caught by validateTaskId middleware before this)
  */
-const getTaskById = async (req, res) => {
+const getTaskById = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const task = tasks.find((t) => t.id === id);
+    const task = await Task.findById(req.params.id);
 
     if (!task) {
       return sendError(res, 404, "Task not found");
@@ -85,125 +95,93 @@ const getTaskById = async (req, res) => {
 
     sendSuccess(res, 200, "Task retrieved successfully", task);
   } catch (error) {
-    sendError(res, 500, "Error retrieving task");
+    next(error);
   }
 };
 
+// ── POST /tasks ────────────────────────────────────────────────────────────────
 /**
- * POST /tasks
- * Creates a new task
- * Request body:
- * - title: string (required)
- * - description: string (optional)
- * - completed: boolean (optional, default false)
+ * Creates a new task in MongoDB.
+ *
+ * Body fields
+ *   title       String   required
+ *   description String   optional
+ *   completed   Boolean  optional (default: false)
+ *   priority    String   optional (default: 'medium')  enum: low|medium|high
+ *
+ * The pre-save hook in Task.js trims whitespace from title before saving.
+ * If Mongoose validation fails, the error is forwarded to errorHandler which
+ * returns a structured { success, message, errors } JSON — not a raw Mongoose object.
  */
-const createTask = async (req, res) => {
+const createTask = async (req, res, next) => {
   try {
-    const { title, description = "", completed = false } = req.body;
+    const { title, description, completed, priority } = req.body;
 
-    // Validate required fields
-    if (!title || typeof title !== "string" || title.trim() === "") {
-      return sendError(res, 400, "Title is required and must be a non-empty string");
-    }
+    // Build a new document — Mongoose validation + pre-save hook run on .save()
+    const task = new Task({ title, description, completed, priority });
+    await task.save();
 
-    // Validate optional fields
-    if (description && typeof description !== "string") {
-      return sendError(res, 400, "Description must be a string");
-    }
-
-    if (typeof completed !== "boolean") {
-      return sendError(res, 400, "Completed must be a boolean");
-    }
-
-    const newTask = {
-      id: getNextId(),
-      title: title.trim(),
-      description: description.trim(),
-      completed,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    tasks.push(newTask);
-
-    sendSuccess(res, 201, "Task created successfully", newTask);
+    sendSuccess(res, 201, "Task created successfully", task);
   } catch (error) {
-    sendError(res, 500, "Error creating task");
+    next(error); // Mongoose ValidationError → handled by errorHandler.js
   }
 };
 
+// ── PUT /tasks/:id ─────────────────────────────────────────────────────────────
 /**
- * PUT /tasks/:id
- * Updates an existing task
- * Request body: Any of { title, description, completed }
+ * Partially updates an existing task.
+ *
+ * Uses findById() + modify fields + save() so that:
+ *   ✅ pre-save hook fires (title trimming)
+ *   ✅ Mongoose schema validation runs
+ *   ✅ updatedAt is automatically refreshed by the timestamps option
+ *
+ * Only fields present in the request body are updated (partial update).
  */
-const updateTask = async (req, res) => {
+const updateTask = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const task = tasks.find((t) => t.id === id);
+    const task = await Task.findById(req.params.id);
 
     if (!task) {
       return sendError(res, 404, "Task not found");
     }
 
-    // Update only provided fields
-    const { title, description, completed } = req.body;
+    const { title, description, completed, priority } = req.body;
 
-    if (title !== undefined) {
-      if (typeof title !== "string" || title.trim() === "") {
-        return sendError(res, 400, "Title must be a non-empty string");
-      }
-      task.title = title.trim();
-    }
+    // Apply only the fields that were explicitly sent
+    if (title       !== undefined) task.title       = title;
+    if (description !== undefined) task.description = description;
+    if (completed   !== undefined) task.completed   = completed;
+    if (priority    !== undefined) task.priority    = priority;
 
-    if (description !== undefined) {
-      if (typeof description !== "string") {
-        return sendError(res, 400, "Description must be a string");
-      }
-      task.description = description.trim();
-    }
-
-    if (completed !== undefined) {
-      if (typeof completed !== "boolean") {
-        return sendError(res, 400, "Completed must be a boolean");
-      }
-      task.completed = completed;
-    }
-
-    // Always update the updatedAt timestamp
-    task.updatedAt = new Date();
+    await task.save(); // triggers pre-save hook + validation + updatedAt refresh
 
     sendSuccess(res, 200, "Task updated successfully", task);
   } catch (error) {
-    sendError(res, 500, "Error updating task");
+    next(error);
   }
 };
 
+// ── DELETE /tasks/:id ──────────────────────────────────────────────────────────
 /**
- * DELETE /tasks/:id
- * Deletes a task by ID
+ * Deletes a task by its MongoDB ObjectId and returns the deleted document.
+ *
+ * Responses
+ *   200  deleted successfully (returns the deleted task)
+ *   404  valid ObjectId but no document exists
  */
-const deleteTask = async (req, res) => {
+const deleteTask = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const taskIndex = tasks.findIndex((t) => t.id === id);
+    const task = await Task.findByIdAndDelete(req.params.id);
 
-    if (taskIndex === -1) {
+    if (!task) {
       return sendError(res, 404, "Task not found");
     }
 
-    const deletedTask = tasks.splice(taskIndex, 1);
-
-    sendSuccess(res, 200, "Task deleted successfully", deletedTask[0]);
+    sendSuccess(res, 200, "Task deleted successfully", task);
   } catch (error) {
-    sendError(res, 500, "Error deleting task");
+    next(error);
   }
 };
 
-module.exports = {
-  getAllTasks,
-  getTaskById,
-  createTask,
-  updateTask,
-  deleteTask,
-};
+module.exports = { getAllTasks, getTaskById, createTask, updateTask, deleteTask };

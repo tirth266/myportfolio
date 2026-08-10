@@ -1,6 +1,8 @@
 node_modules
-package-lock.json
 .DS_Store
 .env
 .env.local
 *.log
+
+# Auto-generated activity logs — do not commit
+logs/
