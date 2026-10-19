@@ -21,6 +21,11 @@ const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
 const authRoutes = require("./routes/authRoutes");
 const taskRoutes = require("./routes/taskRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const { registerListeners } = require("./events/listeners");
+
+// Practical 10: Initialize asynchronous event-driven listeners
+registerListeners();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -108,6 +113,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Practical 9: Debug endpoint exposing in-memory cache hit/miss counters
 app.get("/api/debug/cache-stats", (req, res) => {
@@ -122,6 +128,7 @@ app.get("/api/debug/cache-stats", (req, res) => {
 // Legacy aliases — same routers, older paths. Kept so nothing breaks.
 app.use("/auth", authRoutes);
 app.use("/tasks", taskRoutes);
+app.use("/messages", messageRoutes);
 
 // ========== ERROR HANDLING ==========
 
