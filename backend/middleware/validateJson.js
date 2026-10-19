@@ -1,19 +1,17 @@
 /**
- * JSON Content-Type Validator Middleware
- * Ensures POST and PUT requests have Content-Type: application/json
- * Returns 415 Unsupported Media Type if validation fails
+ * JSON Content-Type Validator Middleware (Practical 4)
+ * Ensures POST and PUT requests include Content-Type: application/json
+ * Returns 400 Bad Request if validation fails
  */
 
 const validateJson = (req, res, next) => {
-  // Only validate for POST and PUT requests
   if (req.method === "POST" || req.method === "PUT") {
     const contentType = req.get("content-type");
 
-    // Check if Content-Type header exists and is application/json
     if (!contentType || !contentType.includes("application/json")) {
-      return res.status(415).json({
+      return res.status(400).json({
         success: false,
-        message: "Content-Type must be application/json",
+        error: "Content-Type must be application/json",
       });
     }
   }
