@@ -7,18 +7,28 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Spinner from "./components/Spinner";
 import Home from "./pages/Home";
 
-// Route-level code splitting (Practical 8): every route except the entry "/"
-// is fetched on demand as its own chunk.
-const AboutPage = lazy(() => import("./pages/About"));
-const SkillsPage = lazy(() => import("./pages/Skills"));
-const Projects = lazy(() => import("./pages/Projects"));
-const ExperiencePage = lazy(() => import("./pages/Experience"));
-const Contact = lazy(() => import("./pages/Contact"));
-const TasksPage = lazy(() => import("./pages/Tasks"));
-const LoginPage = lazy(() => import("./pages/Login"));
-const RegisterPage = lazy(() => import("./pages/Register"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+// Practical 8: Route-level code splitting using React.lazy() and dynamic import()
+// Supplementary: 300ms minimum delay prevents UI flicker on fast connections
+const lazyWithDelay = (importFn, minDelay = 300) =>
+  lazy(() =>
+    Promise.all([
+      importFn(),
+      new Promise((resolve) => setTimeout(resolve, minDelay)),
+    ]).then(([module]) => module)
+  );
 
+// Convert all page components (except entry Home) to lazy-loaded chunks
+const AboutPage = lazyWithDelay(() => import("./pages/About"));
+const SkillsPage = lazyWithDelay(() => import("./pages/Skills"));
+const Projects = lazyWithDelay(() => import("./pages/Projects"));
+const ExperiencePage = lazyWithDelay(() => import("./pages/Experience"));
+const Contact = lazyWithDelay(() => import("./pages/Contact"));
+const TasksPage = lazyWithDelay(() => import("./pages/Tasks"));
+const LoginPage = lazyWithDelay(() => import("./pages/Login"));
+const RegisterPage = lazyWithDelay(() => import("./pages/Register"));
+const NotFound = lazyWithDelay(() => import("./pages/NotFound"));
+
+// Fallback component matching portfolio theme
 function RouteFallback() {
   return (
     <div className="page-section" role="status" aria-live="polite">
