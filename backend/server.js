@@ -1,94 +1,131 @@
 /**
- * Task Manager REST API — Practical 5
+ * Portfolio REST API — Practical 7: Authentication and Middleware Pipeline
+ * Node.js + Express.js + MongoDB (Mongoose ODM) + JWT
  *
- * Connects to MongoDB via Mongoose, then starts the Express server.
- * All middleware from Practical 4 is preserved.
+ * Middleware order in this file matters:
+ *   logger -> cors -> express.json() -> routes -> notFound -> errorHandler
+ *
+ * Within a protected route the order is:
+ *   auth.js -> validate.js -> controller
  */
 
-// Load environment variables first (must be before any process.env usage)
+// Load environment variables before any other logic
 require("dotenv").config();
 
-const express  = require("express");
+const express = require("express");
 const mongoose = require("mongoose");
-const cors     = require("cors");
+const cors = require("cors");
 
-const logger       = require("./middleware/logger");
-const validateJson = require("./middleware/validateJson");
-const notFound     = require("./middleware/notFound");
+const logger = require("./middleware/logger");
+const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
-const taskRoutes   = require("./routes/taskRoutes");
+const authRoutes = require("./routes/authRoutes");
+const taskRoutes = require("./routes/taskRoutes");
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
+const app = express();
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
 
-// ========== MIDDLEWARE ==========
+const startServer = async () => {
+  if (!MONGO_URI) {
+    console.error("\n[ERROR] MONGO_URI is not defined in backend/.env");
+    console.error("Please create backend/.env with your MongoDB connection string.\n");
+    process.exit(1);
+  }
 
-app.use(cors());
+  // Practical 7: fail loudly at startup instead of throwing a confusing
+  // 500 on the first login. The secret must never be committed to git.
+  if (!process.env.JWT_SECRET) {
+    console.error("\n[ERROR] JWT_SECRET is not defined in backend/.env");
+    console.error("Add a long random string, e.g. JWT_SECRET=" + "a".repeat(48) + "\n");
+    process.exit(1);
+  }
 
-// Request logging middleware (Practical 4 — logs to console + CSV)
+  try {
+    await mongoose.connect(MONGO_URI);
+    console.log("\nMongoDB connected successfully");
+    return app.listen(PORT, () => {
+      console.log(`
+╔════════════════════════════════════════════════╗
+║   Portfolio REST API Server (Practical 7)      ║
+║   Running on http://localhost:${PORT}             ║
+║   Auth: JWT Bearer tokens, 1h expiry           ║
+║   Database: MongoDB via Mongoose ODM            ║
+║   CORS: http://localhost:5173                  ║
+╚════════════════════════════════════════════════╝
+      `);
+    });
+  } catch (err) {
+    console.error("[ERROR] MongoDB connection failed:", err.message);
+    process.exit(1);
+  }
+};
+
+// ========== MIDDLEWARE PIPELINE ==========
+
+// 1. Global request logging middleware (METHOD URL - TIMESTAMP)
 app.use(logger);
 
-// Body parser middleware (built-in to Express)
-app.use(express.json());
+// 2. CORS middleware — allow React dev server origin only
+app.use(
+  cors({
+    origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-// JSON content-type validation middleware (Practical 4)
-app.use(validateJson);
+// 3. Built-in body parser for JSON payloads
+app.use(express.json());
 
 // ========== ROUTES ==========
 
 // Health check endpoint
 app.get("/", (req, res) => {
   res.json({
-    success:   true,
-    message:   "Task Manager API is running",
-    version:   "2.0.0",
-    practical: "Practical 5 — MongoDB + Mongoose",
-    endpoints: "/tasks",
+    success: true,
+    message: "Portfolio REST API is running",
+    practical: "Practical 7 — Authentication and Middleware Pipeline",
+    endpoints: {
+      register: "POST /api/auth/register",
+      login: "POST /api/auth/login",
+      me: "GET /api/auth/me",
+      getAllTasks: "GET /api/tasks",
+      getTaskById: "GET /api/tasks/:id",
+      createTask: "POST /api/tasks",
+      updateTask: "PUT /api/tasks/:id",
+      deleteTask: "DELETE /api/tasks/:id",
+      cacheStats: "GET /api/tasks/cache/stats",
+      cacheReset: "POST /api/tasks/cache/reset",
+    },
   });
 });
 
-// Task routes
+// ========== /api ROUTES (Practical 7) ==========
+// Everything now lives under /api, which is the prefix the practical uses.
+// The old /auth and /tasks mounts are kept directly underneath so the React
+// app and the backend tests that still call /tasks keep working.
+
+app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
+
+// Legacy aliases — same routers, older paths. Kept so nothing breaks.
+app.use("/auth", authRoutes);
 app.use("/tasks", taskRoutes);
 
 // ========== ERROR HANDLING ==========
 
-// 404 handler — must come after all routes
+// 404 Handler for undefined routes (must come after all valid routes)
 app.use(notFound);
 
-// Global error handler — must be last middleware
+// Centralized Global Error Handler (must be last middleware)
 app.use(errorHandler);
 
-// ========== MONGODB CONNECTION + SERVER START ==========
+// ========== DATABASE CONNECTION & SERVER STARTUP ==========
 
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  console.error(
-    "\n[ERROR] MONGO_URI is not set.\n" +
-    "Create a .env file in the /backend directory and add:\n" +
-    "  MONGO_URI=your_mongodb_connection_string\n" +
-    "See .env.example for the expected format.\n"
-  );
-  process.exit(1);
+if (process.env.NODE_ENV !== "test" || process.env.RUN_TEST_SERVER === "true") {
+  startServer();
 }
 
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log("MongoDB connected");
-    app.listen(PORT, () => {
-      console.log(`
-╔════════════════════════════════════════╗
-║   Task Manager REST API Server         ║
-║   Running on http://localhost:${PORT}   ║
-╚════════════════════════════════════════╝
-      `);
-    });
-  })
-  .catch((err) => {
-    // Log only the message — never log the URI or credentials
-    console.error("MongoDB connection failed:", err.message);
-    process.exit(1);
-  });
-
 module.exports = app;
+module.exports.startServer = startServer;

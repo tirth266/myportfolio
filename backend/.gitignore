@@ -1,8 +1,18 @@
 node_modules
 .DS_Store
+
+# ---- Secrets (Practical 7) ------------------------------------------------
+# .env holds MONGO_URI credentials and JWT_SECRET. It must never be pushed
+# to GitHub, so it is ignored here. Commit .env.example instead — that file
+# only ever contains placeholders.
 .env
 .env.local
+.env.*.local
+
 *.log
 
 # Auto-generated activity logs — do not commit
 logs/
+
+# Test output
+coverage/

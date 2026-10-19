@@ -1,7 +1,7 @@
 {
   "name": "task-manager-api",
-  "version": "1.0.0",
-  "description": "A professional Task Manager REST API built with Express.js",
+  "version": "2.0.0",
+  "description": "Task Manager REST API built with Node.js, Express.js, and MongoDB (Practical 5)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,15 +11,22 @@
     "express",
     "rest-api",
     "task-manager",
-    "crud"
+    "crud",
+    "mongodb",
+    "mongoose",
+    "practical-5"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
-    "mongoose": "^9.9.1"
+    "google-auth-library": "^11.0.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.18.0",
+    "node-cache": "^5.1.2"
   },
   "engines": {
     "node": ">=14.0.0"
