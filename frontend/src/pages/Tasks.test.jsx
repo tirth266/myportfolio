@@ -4,30 +4,40 @@ import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import TasksPage from './Tasks';
 
-vi.mock('axios', () => ({
-  default: {
+vi.mock('axios', () => {
+  const http = {
+    create: () => http,
     get: vi.fn().mockResolvedValue({ status: 200, data: { data: { tasks: [] } } }),
     post: vi.fn(),
     put: vi.fn(),
     delete: vi.fn(),
-  },
-}));
+  };
+
+  return {
+    __esModule: true,
+    default: http,
+  };
+});
 
 vi.mock('sweetalert2', () => ({
+  __esModule: true,
   default: {
     fire: vi.fn(),
   },
 }));
 
 vi.mock('../components/Spinner', () => ({
+  __esModule: true,
   default: () => React.createElement('div', null, 'Loading'),
 }));
 
 vi.mock('../components/TaskCard', () => ({
+  __esModule: true,
   default: ({ task }) => React.createElement('div', null, task.title),
 }));
 
 vi.mock('framer-motion', () => ({
+  __esModule: true,
   motion: {
     div: ({ children, ...props }) => React.createElement('div', props, children),
     section: ({ children, ...props }) => React.createElement('section', props, children),
