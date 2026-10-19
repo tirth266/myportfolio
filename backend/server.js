@@ -71,10 +71,19 @@ const startServer = async () => {
 // 1. Global request logging middleware (METHOD URL - TIMESTAMP)
 app.use(logger);
 
-// 2. CORS middleware — allow React dev server origin only
+// 2. CORS middleware — allow frontend origin (dev server & containerized Nginx)
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173,http://localhost:80,http://localhost")
+  .split(",")
+  .map((o) => o.trim());
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

@@ -1,0 +1,60 @@
+services:
+  # MongoDB Database Service
+  mongo:
+    image: mongo:latest
+    container_name: myportfolio-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - portfolio-network
+
+  # Node.js Express REST API Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: myportfolio-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/task_manager
+      - FRONTEND_ORIGIN=http://localhost:80,http://localhost:5173,http://localhost
+      - JWT_SECRET=p6_jwt_super_secret_practical6_2026
+      - JWT_EXPIRES_IN=1h
+    depends_on:
+      - mongo
+    networks:
+      - portfolio-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # React Frontend (built & served via Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: myportfolio-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - portfolio-network
+
+volumes:
+  mongo-data:
+    driver: local
+
+networks:
+  portfolio-network:
+    driver: bridge
