@@ -109,6 +109,16 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 
+// Practical 9: Debug endpoint exposing in-memory cache hit/miss counters
+app.get("/api/debug/cache-stats", (req, res) => {
+  const taskCache = require("./cache/taskCache");
+  res.status(200).json({
+    success: true,
+    message: "In-memory cache statistics",
+    ...taskCache.getStats(),
+  });
+});
+
 // Legacy aliases — same routers, older paths. Kept so nothing breaks.
 app.use("/auth", authRoutes);
 app.use("/tasks", taskRoutes);
