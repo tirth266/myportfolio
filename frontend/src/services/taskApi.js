@@ -86,4 +86,10 @@ export const createTask = async (data) => client.post("/api/tasks", data);
 export const updateTask = async (id, data) => client.put(`/api/tasks/${id}`, data);
 export const deleteTask = async (id) => client.delete(`/api/tasks/${id}`);
 
+// Practical 13 — AI description generation
+// Sends ONLY the task title to our own backend endpoint.
+// The Gemini API key is never exposed to the browser.
+export const generateDescription = async (title) =>
+  client.post("/api/ai/generate-description", { title });
+
 export default client;

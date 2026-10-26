@@ -19,7 +19,8 @@ A full-stack portfolio application with a React frontend, Express REST API, and 
 | 9 | In-Memory Caching with Node-Cache |
 | 10 | Asynchronous Event-Driven Architecture (EventEmitter) |
 | 11 | Containerization with Docker and Docker Compose |
-| **12** | **CI/CD Pipeline with GitHub Actions** |
+| 12 | CI/CD Pipeline with GitHub Actions |
+| **13** | **AI API Integration — Gemini-powered task description generation** |
 
 ---
 
@@ -247,3 +248,115 @@ Automated Continuous Integration pipeline configured at [`.github/workflows/ci.y
 ### Inspecting Workflow Runs
 Workflow execution logs, step timings, and status badges can be viewed directly under the GitHub repository Actions tab:
 - **GitHub Actions Dashboard**: [https://github.com/tirth266/myportfolio/actions](https://github.com/tirth266/myportfolio/actions)
+
+---
+
+## Practical 13: AI API Integration into a Web Application
+
+AI-powered task description generation using the **Google Gemini API**, integrated securely via the backend.
+
+### Feature Overview
+
+- **Generate Description** button in the task creation form.
+- Sends **only the task title** to the backend; the backend calls Gemini.
+- Returns an editable description inserted into the description field.
+- Displays a clear **AI-generated content disclaimer**.
+- Graceful fallback if the API key is missing or the provider is unavailable.
+- Task creation continues to work normally when AI is unavailable.
+
+### AI Provider
+
+| Property | Value |
+|----------|-------|
+| Provider | Google Gemini API |
+| SDK | `@google/generative-ai` |
+| Model | `gemini-1.5-flash` |
+| Key location | `backend/.env` → `GEMINI_API_KEY` |
+| Key exposure | **Backend only — never sent to browser** |
+
+### Backend Endpoint
+
+```
+POST /api/ai/generate-description
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+{ "title": "Prepare project presentation" }
+```
+
+**Success (200):**
+```json
+{
+  "success": true,
+  "description": "Prepare the presentation slides, organize project results, and review the material before the scheduled presentation.",
+  "fallback": false,
+  "disclaimer": "AI-generated suggestion: Review and edit this description before saving..."
+}
+```
+
+**Graceful degradation (503):**
+```json
+{
+  "success": false,
+  "message": "AI description generation is not configured on this server. You can still enter a description manually.",
+  "fallback": true
+}
+```
+
+### Environment Variable Setup
+
+```bash
+# In backend/.env (NEVER commit this file)
+GEMINI_API_KEY=your-gemini-api-key-here
+```
+
+Get a free key at: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+
+> ⚠️ The `GEMINI_API_KEY` must **never** be committed to Git, placed in frontend code, or exposed in browser requests.
+
+### Security Measures
+
+- API key read exclusively from `process.env.GEMINI_API_KEY` (backend only).
+- Key is never logged, returned in responses, or accessible from the browser.
+- Only the task title (minimum necessary data) is forwarded to Gemini.
+- Per-title rate limit: 1 generation per normalized title per 60 seconds.
+- 10-second provider timeout with `AbortController`.
+- Provider errors are caught and returned as structured JSON; no stack traces.
+
+### Testing the Feature
+
+```bash
+# Run all backend tests (no real API key required — Gemini SDK is mocked)
+cd backend
+npm test
+```
+
+Test suite covers: auth guard, empty/long/missing title validation, missing API key (503), mocked success (200), mocked provider failure (503), mocked invalid key (503).
+
+```bash
+# Run with a real key (optional — only if you have GEMINI_API_KEY configured)
+cd backend
+node -e "
+const axios = require('axios');
+// Start server first, then POST with a valid JWT
+"
+```
+
+### Privacy and Responsible AI
+
+- Only the task title is sent to the Gemini API — no credentials, user IDs, or private data.
+- Users are informed via a visible disclaimer that their title is sent to an external provider.
+- Generated content is editable; the user must explicitly review and submit.
+- Do not enter confidential, personal, or sensitive information as a task title.
+- Google's data handling policies apply: [https://ai.google.dev/gemini-api/terms](https://ai.google.dev/gemini-api/terms)
+
+### Error Handling
+
+| Scenario | HTTP Status | Behaviour |
+|----------|-------------|-----------|
+| No API key configured | 503 | Returns `fallback: true` with helpful message |
+| Empty/missing title | 400 | Validation error before calling provider |
+| Provider timeout (>10s) | 503 | AbortController cancels, returns safe message |
+| Invalid API key | 503 | Caught, returns safe message without exposing key |
+| Provider outage | 503 | Returns safe message, task form stays usable |
+| Rate limit exceeded | 429 | Returns retry-after seconds |

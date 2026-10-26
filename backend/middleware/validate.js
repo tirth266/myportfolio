@@ -54,6 +54,12 @@ const rules = {
     priority: { label: "Priority", type: "string", required: false, oneOf: ["low", "medium", "high"] },
     completed: { label: "Completed", type: "boolean", required: false },
   },
+
+  // POST /api/ai/generate-description — Practical 13
+  // Only the title is forwarded to the AI provider; no PII or credentials.
+  generateDescription: {
+    title: { label: "Title", type: "string", required: true, trim: true, min: 1, max: 200 },
+  },
 };
 
 /**

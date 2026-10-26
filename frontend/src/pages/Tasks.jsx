@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Spinner from "../components/Spinner";
 import TaskCard from "../components/TaskCard";
-import { createTask, deleteTask, getTasks, updateTask } from "../services/taskApi";
+import { createTask, deleteTask, generateDescription, getTasks, updateTask } from "../services/taskApi";
 
 // Practical 8: sweetalert2 is only needed when the user actually triggers a
 // confirm/toast action, so its chunk is fetched on demand instead of on mount.
@@ -22,6 +22,14 @@ function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastRequest, setLastRequest] = useState(null);
+
+  // Practical 13: AI description generation state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiDisclaimer, setAiDisclaimer] = useState("");
+  // Ref to track the description field generation nonce — prevents a stale
+  // response from overwriting a description the user typed after clicking generate
+  const generateNonce = useRef(0);
 
   // Fetch all tasks from MongoDB REST API
   const fetchTasks = async () => {
@@ -110,6 +118,42 @@ function TasksPage() {
     setCompleted(false);
     setPriority("medium");
     setEditingId(null);
+    setAiError("");
+    setAiDisclaimer("");
+  };
+
+  // Practical 13: AI generate handler
+  const handleGenerateDescription = async () => {
+    if (!title.trim()) {
+      setAiError("Please enter a task title before generating a description.");
+      return;
+    }
+    setAiError("");
+    setAiDisclaimer("");
+    setAiLoading(true);
+    const thisNonce = ++generateNonce.current;
+
+    try {
+      const res = await generateDescription(title.trim());
+      // Stale-response guard: ignore if user triggered another generation
+      if (thisNonce !== generateNonce.current) return;
+
+      if (res.data?.success && res.data?.description) {
+        // Only set description if user has not typed something since clicking
+        setDescription(res.data.description);
+        setAiDisclaimer(res.data.disclaimer || "");
+      } else {
+        setAiError("AI returned an unexpected response. Please try again.");
+      }
+    } catch (err) {
+      if (thisNonce !== generateNonce.current) return;
+      const msg =
+        err?.response?.data?.message ||
+        "AI service is unavailable. You can still enter a description manually.";
+      setAiError(msg);
+    } finally {
+      if (thisNonce === generateNonce.current) setAiLoading(false);
+    }
   };
 
   const startEdit = (task) => {
@@ -367,6 +411,52 @@ function TasksPage() {
                     placeholder="Brief details about the task..."
                     className="mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-orange-400"
                   />
+
+                  {/* Practical 13: Generate Description button */}
+                  <button
+                    id="ai-generate-description-btn"
+                    type="button"
+                    onClick={handleGenerateDescription}
+                    disabled={aiLoading || !title.trim()}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3.5 py-2 text-xs font-semibold text-violet-300 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        <span>Generating…</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                        <span>✨ Generate Description with AI</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* AI error / fallback message */}
+                  {aiError && (
+                    <div
+                      id="ai-error-banner"
+                      className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300"
+                    >
+                      ⚠ {aiError}
+                    </div>
+                  )}
+
+                  {/* AI-generated content disclaimer */}
+                  {aiDisclaimer && (
+                    <div
+                      id="ai-disclaimer-banner"
+                      className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-300"
+                    >
+                      🤖 {aiDisclaimer}
+                    </div>
+                  )}
                 </div>
 
                 <div>

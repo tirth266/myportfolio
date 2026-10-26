@@ -22,6 +22,7 @@ const errorHandler = require("./middleware/errorHandler");
 const authRoutes = require("./routes/authRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const aiRoutes = require("./routes/aiRoutes"); // Practical 13
 const { registerListeners } = require("./events/listeners");
 
 // Practical 10: Initialize asynchronous event-driven listeners
@@ -111,6 +112,7 @@ app.get("/", (req, res) => {
       deleteTask: "DELETE /api/tasks/:id",
       cacheStats: "GET /api/tasks/cache/stats",
       cacheReset: "POST /api/tasks/cache/reset",
+      generateDescription: "POST /api/ai/generate-description", // Practical 13
     },
   });
 });
@@ -123,6 +125,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/ai", aiRoutes); // Practical 13: AI API integration
 
 // Practical 9: Debug endpoint exposing in-memory cache hit/miss counters
 app.get("/api/debug/cache-stats", (req, res) => {
