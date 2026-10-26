@@ -24,7 +24,8 @@ describe('Task Management REST API Endpoints', () => {
   describe('GET / — Root & Health Check Endpoint', () => {
     it('should return 200 OK with server health status and endpoint catalog', async () => {
       const res = await request(app).get('/');
-      expect(res.statusCode).toBe(200);
+      // Deliberate assertion failure for CI demonstration (Expected 201, actual 200)
+      expect(res.statusCode).toBe(201);
       expect(res.body).toHaveProperty('success', true);
       expect(res.body).toHaveProperty('message', 'Portfolio REST API is running');
       expect(res.body).toHaveProperty('endpoints');
