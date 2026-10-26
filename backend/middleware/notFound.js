@@ -1,13 +1,12 @@
 /**
- * 404 Not Found Middleware
- * Handles all requests to undefined routes
- * Must be placed after all other route handlers
+ * 404 Not Found Middleware (Practical 4)
+ * Handles undefined routes and returns structured JSON
  */
 
 const notFound = (req, res) => {
   res.status(404).json({
     success: false,
-    message: "Route not found",
+    error: "Route not found",
   });
 };
 

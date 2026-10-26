@@ -1,5 +1,7 @@
 # My Portfolio — Full Stack MERN Application
 
+[![CI/CD Pipeline](https://github.com/tirth266/myportfolio/actions/workflows/ci.yml/badge.svg)](https://github.com/tirth266/myportfolio/actions/workflows/ci.yml)
+
 A full-stack portfolio application with a React frontend, Express REST API, and MongoDB Atlas persistence.
 
 ## Practical Coverage
@@ -11,7 +13,13 @@ A full-stack portfolio application with a React frontend, Express REST API, and 
 | 3 | GitHub API integration and RepoCard component |
 | 4 | Node.js + Express REST CRUD API |
 | 5 | MongoDB + Mongoose ODM integration |
-| **6** | **Full-stack integration: React ↔ Express ↔ MongoDB** |
+| 6 | Full-stack integration: React ↔ Express ↔ MongoDB |
+| 7 | Authentication and Middleware Pipeline (JWT & Validation) |
+| 8 | Performance Optimization & Profiling |
+| 9 | In-Memory Caching with Node-Cache |
+| 10 | Asynchronous Event-Driven Architecture (EventEmitter) |
+| 11 | Containerization with Docker and Docker Compose |
+| **12** | **CI/CD Pipeline with GitHub Actions** |
 
 ---
 
@@ -215,3 +223,27 @@ npm run build
 ```
 
 Production output is written to `frontend/dist/`.
+
+---
+
+## Practical 12: CI/CD Pipeline with GitHub Actions
+
+Automated Continuous Integration pipeline configured at [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+### Workflow Triggers
+- **Push events** targeting the `main` branch.
+- **Pull Request events** targeting the `main` branch.
+
+### Automated Validation Stages
+1. **Backend API Automated Tests (`backend-test`)**:
+   - Checks out the repository and configures Node.js 20 with `npm` dependency caching based on `backend/package-lock.json`.
+   - Executes `npm install` inside the `backend` directory.
+   - Runs automated Jest & Supertest integration test suite (`npm test`) covering root health check (`GET /`), authentication guards (`GET /api/tasks`), cache monitoring (`GET /api/debug/cache-stats`), and 404 error middleware.
+2. **Frontend Build & Validation (`frontend-build`)**:
+   - Configures Node.js 20 with dependency caching based on `frontend/package-lock.json`.
+   - Executes `npm install` inside the `frontend` directory.
+   - Compiles the production SPA bundle with Vite (`npm run build`).
+
+### Inspecting Workflow Runs
+Workflow execution logs, step timings, and status badges can be viewed directly under the GitHub repository Actions tab:
+- **GitHub Actions Dashboard**: [https://github.com/tirth266/myportfolio/actions](https://github.com/tirth266/myportfolio/actions)

@@ -1,42 +1,31 @@
 /**
- * LEGACY — Practical 4 in-memory storage
+ * LEGACY — Practical 4 In-Memory Task Storage
  *
  * This file was the data store for Practical 4.
  * As of Practical 5, all task data is stored in MongoDB via the Mongoose Task model
  * (see models/Task.js). This file is no longer imported or used by the application.
  *
- * Kept for reference only. Do not delete — it documents the Practical 4 implementation.
- */
-
-/**
- * In-memory task storage
- * This simulates a database for demonstration purposes
+ * Preserved for reference and Practical 4 documentation.
  */
 
 let tasks = [
   {
     id: 1,
-    title: "Learn Express.js",
-    description: "Complete the Express.js middleware practical",
+    title: "Complete Practical 4",
+    description: "Build REST API using Express",
     completed: false,
-    createdAt: new Date("2024-01-15T10:30:00Z"),
-    updatedAt: new Date("2024-01-15T10:30:00Z"),
   },
   {
     id: 2,
-    title: "Build REST API",
-    description: "Create a production-ready REST API",
+    title: "Master Express Middleware",
+    description: "Implement logging, JSON validation, and error handlers",
     completed: true,
-    createdAt: new Date("2024-01-10T14:20:00Z"),
-    updatedAt: new Date("2024-01-18T16:45:00Z"),
   },
   {
     id: 3,
-    title: "Test with Postman",
-    description: "Set up and test all API endpoints",
+    title: "Integrate Frontend with REST API",
+    description: "Connect React Task Manager UI to backend endpoints",
     completed: false,
-    createdAt: new Date("2024-01-20T09:15:00Z"),
-    updatedAt: new Date("2024-01-20T09:15:00Z"),
   },
 ];
 

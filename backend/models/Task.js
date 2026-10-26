@@ -3,46 +3,41 @@
  *
  * Mongoose schema for a Task document stored in MongoDB.
  *
- * Fields
- * ──────
- *  title       String  required        The task name (auto-trimmed via pre-save hook)
- *  description String  optional        Extra detail about the task
- *  completed   Boolean default false   Whether the task is done
- *  priority    String  enum            'low' | 'medium' | 'high' (default 'medium')
- *  createdAt   Date    auto            Managed by the timestamps option
- *  updatedAt   Date    auto            Managed by the timestamps option
+ * Schema Fields:
+ *  - title       (String, required, trimmed, non-empty)
+ *  - description (String, optional, default: "")
+ *  - completed   (Boolean, default: false)
+ *  - priority    (String, enum: ['low', 'medium', 'high'], default: 'medium')
+ *  - createdAt   (Date, default: Date.now)
  *
- * Pre-save hook
- * ─────────────
- *  Automatically trims whitespace from `title` before every save.
- *  Works for both .save() on a new document and .save() after findById().
+ * Pre-save Hook:
+ *  - Automatically trims whitespace from title before saving.
  */
 
 const mongoose = require("mongoose");
 
 const taskSchema = new mongoose.Schema(
   {
-    // ── Required ────────────────────────────────────────────────────────────────
     title: {
       type: String,
       required: [true, "Title is required"],
-      trim: true,                      // schema-level trim (Mongoose built-in)
+      trim: true,
+      validate: {
+        validator: function (value) {
+          return typeof value === "string" && value.trim().length > 0;
+        },
+        message: "Title cannot be empty or only whitespace",
+      },
     },
-
-    // ── Optional ────────────────────────────────────────────────────────────────
     description: {
       type: String,
       trim: true,
       default: "",
     },
-
-    // ── Status ──────────────────────────────────────────────────────────────────
     completed: {
       type: Boolean,
       default: false,
     },
-
-    // ── Priority (Practical 5 supplementary requirement) ────────────────────────
     priority: {
       type: String,
       enum: {
@@ -51,21 +46,24 @@ const taskSchema = new mongoose.Schema(
       },
       default: "medium",
     },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
-    // Automatically adds createdAt and updatedAt fields managed by Mongoose
     timestamps: true,
   }
 );
 
-// ── Pre-save hook: extra whitespace guard on title ─────────────────────────────
-//
-// Mongoose's built-in `trim: true` handles trim on initial set, but this hook
-// ensures the value is also trimmed if the field is modified via task.title = "  x  "
-// before calling task.save().
-//
+// ── Query index: supports GET /tasks sort({ createdAt: -1 }) ──────────────────
+// Without this index MongoDB must sort the whole collection in memory on every
+// uncached GET /tasks. With it, the sort is served straight off the index.
+taskSchema.index({ createdAt: -1 });
+
+// ── Pre-save hook: trim title before saving ───────────────────────────────────
 taskSchema.pre("save", function (next) {
-  if (this.isModified("title") && this.title) {
+  if (this.isModified("title") && typeof this.title === "string") {
     this.title = this.title.trim();
   }
   next();
